@@ -55,7 +55,8 @@ def saramin_crawler(c_type, saram_headers):
 
             # 회사명/html/body/div[4]/div/div[1]/section/div[3]/div[1]/div[1]/div[3]/strong/a
             # #recruit_info_list > div.content > div:nth-child(1) > div.area_corp > strong > a
-            company_tag = job.select_one("div.area_corp a.name")
+            # #recruit_info_list > div.content > div:nth-child(1) > div.area_corp > strong > a
+            company_tag = job.select_one("div.area_corp strong.corp_name a")
             company = company_tag.text.strip() if company_tag else "회사명 없음"
 
             # 신입/경력 정보 /html/body/div[4]/div/div[1]/section/div[3]/div[1]/div[1]/div[2]/div[3]/span[2]
