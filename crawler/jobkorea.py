@@ -1,4 +1,5 @@
 import requests, bs4, time
+from datetime import datetime, timedelta
 
 
 def job_korea_crawler(c_type, jk_headers):
@@ -62,6 +63,19 @@ def job_korea_crawler(c_type, jk_headers):
                 # 추가 정보 크롤링 (신입/경력, 학력, 근무 형태, 지역, 마감일)
                 detail_list = job.select("ul.chip-information-group li.chip-information-item")
                 details_text = [detail.text.strip() for detail in detail_list]
+
+                deadline = details_text[-1]
+
+                if deadline == '상시채용':
+                    pass
+                elif deadline == '오늘마감':
+                    d_days = 0
+                    deadline_date = datetime.now() + timedelta(d_days)
+                    details_text[-1] = deadline_date.strftime('%Y-%m-%d')
+                else:
+                    d_days = int(deadline[2:])
+                    deadline_date = datetime.now() + timedelta(d_days)
+                    details_text[-1] = deadline_date.strftime('%Y-%m-%d')
 
                 # 데이터 출력
                 markdown_content += f"\n🔹 Job: {title} ({company_name})\n"

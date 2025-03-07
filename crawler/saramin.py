@@ -1,4 +1,5 @@
 import requests, bs4, os, time
+from datetime import datetime, timedelta
 
 
 def saramin_crawler(c_type, saram_headers):
@@ -71,6 +72,18 @@ def saramin_crawler(c_type, saram_headers):
             # 마감일 정보 #recruit_info_list > div.content > div:nth-child(1) > div.area_job > div.job_date > span
             deadline_tag = job.select_one("div.area_job div.job_date span")
             deadline = deadline_tag.text.strip() if deadline_tag else "상시채용"
+
+            if deadline[:2] == '오늘':
+                deadline = datetime.today().strftime('%Y-%m-%d')
+            elif deadline[:2] == '내일':
+                deadline = (datetime.today() + timedelta(days=1)).strftime('%Y-%m-%d')
+            elif deadline == '채용시':
+                deadline = '상시채용'
+            elif deadline[0] == '~':
+                month, day = deadline[2:].split('/')
+                deadline = datetime.now().strftime('%Y') + '-' + month + '-' + day
+            elif deadline[-3:] in ['(월)', '(화)', '(수)', '(목)', '(금)', '(토)', '(일)']:
+                deadline = deadline[:-3]
 
             # 마크다운 포맷으로 저장
             markdown_content += f"🔹 Job: {title} ({company})\n"

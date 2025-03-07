@@ -1,35 +1,27 @@
 import requests, os, time
-from datetime import datetime, timedelta
 
-def jp_crawler(jp_headers):
-    API_URL = "https://www.jobplanet.co.kr/api/v3/search/postings"
-    JP_HEADERS = jp_headers
-    PARAMS = {
-        "occupation_level2": "11913,11916",  # 데이터 엔지니어 관련 직군 코드
-        "years_of_experience": "0,3",  # 0~2년 경력
-        "order_by": "ranking",
-        "query": "",
-        "page": 1,  # 시작 페이지
-        "page_size": 8  # 한 번에 가져올 개수
-    }
+
+def zig_hang_crawler(zh_headers):
+    headers = zh_headers
     all_jobs = []  # 모든 채용 공고 저장 리스트
-    page = 1  # 초기 페이지 값
+    page = 0  # 초기 페이지 값
 
     markdown_all = ""  # 전체 공고
     markdown_newbie = ""  # 신입 공고
     markdown_experienced = ""  # 경력 공고
 
     while True:
-        PARAMS["page"] = page  # 현재 페이지 설정
-        response = requests.get(API_URL, params=PARAMS, headers=JP_HEADERS)
+        api_url = rf"https://api.zighang.com/api/recruitment/filter/v4?page={page}&size=11&isOpen=true&sortCondition=DEADLINE&orderBy=ASC&companyTypes=&industries=&recruitmentTypeNames=&recruitmentDeadlineType=&educations=&careers=ZERO,ONE,TWO,THREE,IRRELEVANCE&recruitmentAddress=&recJobMajorCategory=AI_%EB%8D%B0%EC%9D%B4%ED%84%B0&recJobSubCategory=%EB%8D%B0%EC%9D%B4%ED%84%B0%EC%97%94%EC%A7%80%EB%8B%88%EC%96%B4&affiliate=&companyName=&keywords=&uploadStartDate=&uploadEndDate=&workStartDate=&workEndDate="
+        response = requests.get(api_url, headers=headers)
 
         if response.status_code != 200:
             print(f"❌ 요청 실패: {response.status_code}")
+            print(response.text)
             break
 
         data = response.json()
         
-        job_list = data.get("data", {}).get("items", [])  # 실제 채용 공고 리스트 추출
+        job_list = data.get("recruitments", {}).get("recruitmentSimpleList", [])  # 실제 채용 공고 리스트 추출
         if not job_list:
             print("✅ 더 이상 데이터 없음 → 크롤링 종료")
             break  # 더 이상 데이터 없으면 종료
@@ -42,44 +34,42 @@ def jp_crawler(jp_headers):
             # 공고 제목
             title = job.get("title", "제목 없음")
 
-            # 원티드 URL (id 기반 생성)
-            job_id = job.get("id")
-            job_url = f"https://www.jobplanet.co.kr/job/{job_id}" if job_id else "URL 없음"
+            # URL
+            job_url = job.get("shortenedUrl", "URL 없음")
 
             # 회사명
-            company_name = job.get("company", {}).get("name", "회사명 없음")
+            company_name = job.get("companyName", "회사명 없음")
 
             # 근무 지역
-            location = job.get("company", {}).get("city_name", "지역 정보 없음")
+            locations = job.get("recruitmentAddress", [])
+            location = ', '.join(locations)
 
             # 경력 정보
-            # 2 = 경력
-            # 4 = 무관
-            # 1 = 신입
-            is_newbie = job.get("annual", {}).get("type")[0]
-            annual_from = job.get("annual", {}).get("years", 0)  # 최소 경력
-            annual_to = job.get("annual", {}).get("maximum_years", 100)  # 최대 경력
+            careers = job.get('careers', [])
+            if 'ZERO' in careers:
+                is_newbie = True
+            else:
+                is_newbie = False
+                if 'ONE' in careers:
+                    annual_from = 1
+                elif 'TWO' in careers:
+                    annual_from = 2
+                else:
+                    annual_from = 3
 
-            if is_newbie == 1:
+            if is_newbie:
                 career_info = "신입"
-            elif is_newbie == 4:
-                career_info = "경력무관"
-            elif annual_from is not None and annual_to is not None:
-                career_info = f"{annual_from}~{annual_to}년 경력"
             else:
-                career_info = "경력 정보 없음"
+                career_info = f'{annual_from}년 이상'
 
-            deadline_msg = job.get("deadline_message")
+            deadline_type = job.get('deadlineType') 
+            deadline_msg = job.get("recruitmentDeadline")
 
-            if deadline_msg[:2] == '상시':
+            if deadline_type == 'DUE_DATE':
+                deadline = deadline_msg[:10]
+            else:
                 deadline = '상시채용'
-            elif deadline_msg[:2] == '오늘':
-                deadline_date = datetime.now()
-                deadline = deadline_date.strftime('%Y-%m-%d')
-            else:
-                d_days = int(deadline_msg[2:])
-                deadline_date = datetime.now() + timedelta(days=d_days)
-                deadline = deadline_date.strftime('%Y-%m-%d')
+            
 
             # 마크다운 포맷으로 저장
             markdown_entry = f"\n🔹 Job: {title} ({company_name})\n"
@@ -91,7 +81,7 @@ def jp_crawler(jp_headers):
             markdown_all += markdown_entry
 
             # 신입 & 경력 구분 저장
-            if is_newbie == 1:
+            if is_newbie:
                 markdown_newbie += markdown_entry  # 신입, 경력 무관 채용 공고 저장
             else:
                 markdown_experienced += markdown_entry  # 경력 채용 공고 저장

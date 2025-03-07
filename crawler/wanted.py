@@ -69,8 +69,15 @@ def wanted_crawler(wanted_headers):
             else:
                 career_info = "경력 정보 없음"
 
-            # 마감일 정보 (D-값 없음)
-            deadline = "상시채용"
+            # 마감일 정보 (D-값 없음) 1741294385350=
+            detail_url = f"https://www.wanted.co.kr/api/chaos/jobs/v4/{job_id}/details"
+            detail_headers = WANTED_HEADERS
+            detail_headers['referer'] = f'https://www.wanted.co.kr/wd/{job_id}'
+            deadline_dict = requests.get(detail_url, headers=detail_headers).json()
+            deadline = deadline_dict['data']['job']['due_time']
+
+            if deadline is None:
+                deadline = '상시채용'
 
             # 마크다운 포맷으로 저장
             markdown_entry = f"\n🔹 Job: {title} ({company_name})\n"
@@ -96,13 +103,13 @@ def wanted_crawler(wanted_headers):
 
     # 마크다운 파일 저장
     job_list_folder = "job_list"
-    with open(job_list_folder + "/all_job_list.md", "w", encoding="utf-8") as f:
+    with open(job_list_folder + "/all_job_list.md", "a", encoding="utf-8") as f:
         f.write(markdown_all)
 
     with open(job_list_folder + "/newbie_job_list.md", "a", encoding="utf-8") as f:
         f.write(markdown_newbie)
 
-    with open(job_list_folder + "/1_to_3_experience_required_job_list.md", "w", encoding="utf-8") as f:
+    with open(job_list_folder + "/1_to_3_experience_required_job_list.md", "a", encoding="utf-8") as f:
         f.write(markdown_experienced)
 
     print(f"✅ 총 {len(all_jobs)}개의 채용 공고 저장 완료! (wanted_all.md, wanted_newbie.md, wanted_experienced.md)")
